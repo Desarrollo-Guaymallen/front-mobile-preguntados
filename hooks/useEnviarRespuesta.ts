@@ -20,7 +20,7 @@ export default function useEnviarRespuesta() {
         selectedOptionId,
       });
       
-      const res = await axios.post('http://192.168.170.75:3000/api/results', {
+      const res = await axios.post('http://localhost:3000/api/results', {
         participantId,
         questionId,
         selectedOptionId,

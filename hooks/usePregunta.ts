@@ -19,7 +19,7 @@ export default function usePreguntas(code: string) {
   useEffect(() => {
     const fetchPreguntas = async () => {
       try {
-        const res = await axios.post('http://192.168.170.75:3000/api/quizzes/getIfActive', { code });
+        const res = await axios.post('http://localhost:3000/api/quizzes/getIfActive', { code });
 
         if (res.data?.questions?.length > 0) {
           const adaptadas = res.data.questions.map((q: any) => ({

@@ -36,13 +36,13 @@ export default function LoginScreen({ navigation }: Props) {
     setAnimando(true);
 
     try {
-      const res = await axios.post('http://192.168.170.75:3000/api/sessions/join', {
+      const res = await axios.post('http://localhost:3000/api/sessions/join', {
         code: codigo,
         name: nombre,
       });
 
       const participantId = res.data.participant.id;
-      console.log('🔗 Usuario unido, ID:', participantId);
+      console.log(' Usuario unido, ID:', participantId);
 
       Animated.sequence([
         Animated.timing(logoTranslateY, {
