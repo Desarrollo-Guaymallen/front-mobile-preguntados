@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import axios from 'axios';
+import config from '../../config/config';
 
 const { height } = Dimensions.get('window');
 
@@ -36,7 +37,7 @@ export default function LoginScreen({ navigation }: Props) {
     setAnimando(true);
 
     try {
-      const res = await axios.post('http://localhost:3000/api/sessions/join', {
+      const res = await axios.post(`${config.apiUrl}/sessions/join`, {
         code: codigo,
         name: nombre,
       });
@@ -118,7 +119,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#6a1b9a',
+    backgroundColor: '#6a11cb',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },

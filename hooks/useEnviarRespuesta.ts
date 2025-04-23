@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import config from '../config/config';
 
 export default function useEnviarRespuesta() {
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function useEnviarRespuesta() {
         selectedOptionId,
       });
       
-      const res = await axios.post('http://localhost:3000/api/results', {
+      const res = await axios.post(`${config.apiUrl}/results`, {
         participantId,
         questionId,
         selectedOptionId,

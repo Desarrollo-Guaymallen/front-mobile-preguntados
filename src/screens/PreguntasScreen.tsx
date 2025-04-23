@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Button, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import useQuizActivo from '../../hooks/useQuizActivo';
 import useEnviarRespuesta from '../../hooks/useEnviarRespuesta';
 import axios from 'axios';
+import config from '../../config/config';
+
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Preguntas'>;
 
@@ -28,29 +30,33 @@ export default function PreguntasScreen({ route, navigation }: Props) {
   const [cargandoPreguntas, setCargandoPreguntas] = useState(true);
   const [indexActual, setIndexActual] = useState(0);
 
-  // 👉 Traer preguntas cuando se activa la sesión
+  const [esperando, setEsperando] = useState(false);
+  const [opcionSeleccionada, setOpcionSeleccionada] = useState<number | null>(null);
+  
+
+
   useEffect(() => {
     const fetchPreguntas = async () => {
       try {
-        const res = await axios.post('http://localhost:3000/api/quizzes/getIfActive', {
-          code: codigo,
-        });
+        const res = await axios.post(`${config.apiUrl}/quizzes/getIfActive`, { code: codigo });
 
-        if (res.data?.questions?.length > 0) {
-          const adaptadas = res.data.questions.map((q: any) => ({
-            id: q.id,
-            texto: q.text,
-            opciones: q.options.map((opt: any) => ({
-              id: opt.id,
-              texto: opt.text,
-              isCorrect: opt.isCorrect,
-            })),
-          }));
-
-          setPreguntas(adaptadas);
+        if (!res.data?.questions || res.data.questions.length === 0) {
+          throw new Error('No hay preguntas disponibles');
         }
+
+        const adaptadas = res.data.questions.map((q: any) => ({
+          id: q.id,
+          texto: q.text,
+          opciones: q.options.map((opt: any) => ({
+            id: opt.id,
+            texto: opt.text,
+            isCorrect: opt.isCorrect,
+          })),
+        }));
+
+        setPreguntas(adaptadas);
       } catch (err) {
-        console.error('❌ Error al cargar preguntas:', err);
+        console.error('❌ Error al obtener preguntas:', err);
       } finally {
         setCargandoPreguntas(false);
       }
@@ -61,24 +67,51 @@ export default function PreguntasScreen({ route, navigation }: Props) {
     }
   }, [activo]);
 
+  useEffect(() => {
+    if (preguntas.length === 0 || indexActual >= preguntas.length) return;
+  
+   // setEsperando(true);
+    setOpcionSeleccionada(null);
+  
+    const timeout = setTimeout(() => {
+      setIndexActual((prev) => prev + 1);
+      setEsperando(false);
+      setOpcionSeleccionada(null);
+    }, 15000);
+  
+    return () => clearTimeout(timeout);
+  }, [indexActual, preguntas.length]);
+  
+
   const handleResponder = async (opcionId: number) => {
+    if (opcionSeleccionada !== null) return; // solo una vez
+  
+    setOpcionSeleccionada(opcionId);
+  
     const preguntaActual = preguntas[indexActual];
-
-    console.log('📤 Enviando respuesta:', {
-      participantId,
-      questionId: preguntaActual.id,
-      selectedOptionId: opcionId,
-    });
-
     await enviarRespuesta(participantId, preguntaActual.id, opcionId);
-    setIndexActual((prev) => prev + 1);
   };
+  
+  
+  const preguntaActual = preguntas[indexActual];
+
+  function esBase64Imagen(texto: string): boolean {
+    return texto.startsWith('data:image/') || (texto.length > 100 && !/\s/.test(texto));
+  }
+
+  function OpcionVisual({ contenido }: { contenido: string }) {
+    const uri = contenido.startsWith('data:image/') ? contenido : `data:image/jpeg;base64,${contenido}`;
+    if (esBase64Imagen(contenido)) {
+      return <Image source={{ uri }} style={styles.imagen} resizeMode="cover" />;
+    }
+    return <Text style={styles.optionText}>{contenido}</Text>;
+  }
 
   if (loadingActivo || cargandoPreguntas) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.title}>⏳ Esperando a que el juego se active . . .</Text> 
+        <ActivityIndicator size="large" color="#ff4081" />
+        <Text style={styles.title}>🔄 Verificando estado del juego...</Text>
       </View>
     );
   }
@@ -86,9 +119,8 @@ export default function PreguntasScreen({ route, navigation }: Props) {
   if (error) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>❌ Error al verificar el estado del quiz</Text>
-        <Text style={styles.error}>{error}</Text>
-        <Button title="Volver" onPress={() => navigation.goBack()} />
+        <Text style={styles.title}>❌ Error al verificar el estado del juego</Text>
+        <Text style={styles.subtitle}>{error}</Text>
       </View>
     );
   }
@@ -97,7 +129,7 @@ export default function PreguntasScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>⏳ Esperando a que el juego se active…</Text>
-        <ActivityIndicator style={{ marginTop: 20 }} />
+        <ActivityIndicator color="#ff4081" style={{ marginTop: 20 }} />
       </View>
     );
   }
@@ -106,30 +138,47 @@ export default function PreguntasScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>🎉 ¡Has terminado el quiz!</Text>
-        <Button title="Volver al inicio" onPress={() => navigation.popToTop()} />
       </View>
     );
   }
 
-  const preguntaActual = preguntas[indexActual];
+  if (!preguntaActual) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>⏳ Cargando pregunta...</Text>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+  
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{preguntaActual.texto}</Text>
-      <FlatList
-        data={preguntaActual.opciones}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.option}
-            onPress={() => handleResponder(item.id)}
-            disabled={loadingRespuesta}
-          >
-            <Text style={styles.optionText}>{item.texto}</Text>
-          </TouchableOpacity>
-        )}
-      />
-      {loadingRespuesta && <ActivityIndicator style={{ marginTop: 10 }} />}
+      <View style={styles.quizCard}>
+        <Text style={styles.questionTitle}>{preguntaActual.texto}</Text>
+
+        <FlatList
+          data={preguntaActual.opciones}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.optionRow}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.optionCard,
+                opcionSeleccionada === item.id && styles.optionSeleccionada, // aplicar estilo si está seleccionada
+              ]}
+              onPress={() => handleResponder(item.id)}
+              disabled={esperando || opcionSeleccionada !== null}
+            >
+              <OpcionVisual contenido={item.texto} />
+            </TouchableOpacity>
+
+          )}
+        />
+
+        {loadingRespuesta && <ActivityIndicator color="#4caf50" style={{ marginTop: 20 }} />}
+      </View>
     </View>
   );
 }
@@ -137,28 +186,77 @@ export default function PreguntasScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#6a11cb',
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+    alignItems: 'center',
+    padding: 16,
   },
   title: {
+    fontSize: 22,
+    textAlign: 'center',
+    color: '#fff',
+    fontFamily: 'Nunito_700Bold',
+    marginBottom: 12,
+  },
+  subtitle: {
+    color: '#ffdede',
+    textAlign: 'center',
+    fontFamily: 'Nunito_700Bold',
+    marginBottom: 10,
+  },
+  quizCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 30,
+    padding: 24,
+    width: '100%',
+    maxWidth: 600,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  questionTitle: {
     fontSize: 20,
     textAlign: 'center',
-    marginBottom: 16,
+    color: '#ffeb3b',
+    fontFamily: 'Nunito_700Bold',
+    marginBottom: 20,
   },
-  error: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: 10,
+  optionRow: {
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  option: {
-    padding: 15,
-    marginVertical: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+  optionCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 15,
+    marginVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
   optionText: {
     fontSize: 16,
+    color: '#333',
     textAlign: 'center',
+    fontFamily: 'Nunito_700Bold',
   },
+  imagen: {
+    width: '100%',
+    height: 150,
+    borderRadius: 10,
+  },
+  optionSeleccionada: {
+    backgroundColor: '#BBDEFB', // azul claro, buena visibilidad
+    borderWidth: 2,
+    borderColor: '#2196F3',
+  },
+  
+  
 });

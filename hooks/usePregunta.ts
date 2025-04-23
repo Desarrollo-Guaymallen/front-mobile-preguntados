@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import config from '../config/config';
 
 export interface Pregunta {
   id: number;
@@ -19,7 +20,7 @@ export default function usePreguntas(code: string) {
   useEffect(() => {
     const fetchPreguntas = async () => {
       try {
-        const res = await axios.post('http://localhost:3000/api/quizzes/getIfActive', { code });
+        const res = await axios.post(`${config.apiUrl}/quizzes/getIfActive`, { code });
 
         if (res.data?.questions?.length > 0) {
           const adaptadas = res.data.questions.map((q: any) => ({

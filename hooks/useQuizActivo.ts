@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import config from '../config/config';
 
 export default function useQuizActivo(code: string, autoRefresh = false, intervalMs = 3000) {
   const [activo, setActivo] = useState<boolean | null>(null);
@@ -11,7 +12,7 @@ export default function useQuizActivo(code: string, autoRefresh = false, interva
   useEffect(() => {
     const checkActivo = async () => {
       try {
-        const res = await axios.post('http://localhost:3000/api/quizzes/getIfActive', { code });
+        const res = await axios.post(`${config.apiUrl}/quizzes/getIfActive`, { code });
 
         if (res.status === 204) {
           console.log('⏳ Sesión inactiva (204)');
