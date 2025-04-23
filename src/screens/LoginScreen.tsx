@@ -66,11 +66,28 @@ export default function LoginScreen({ navigation }: Props) {
       ]).start(() => {
         navigation.navigate('Preguntas', { codigo, participantId });
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error al ingresar:', err);
-      Alert.alert('Error al unirse', 'Verifica el código e intenta nuevamente.');
-      setAnimando(false);
-    }
+    
+      setAnimando(false); // primero liberamos animaciones o renders bloqueantes
+    
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const msg = err.response?.data?.message || 'Error desconocido';
+    
+        if (status === 403) {
+          Alert.alert('Sesión ya iniciada', msg);
+          window.alert('La sesión ya comenzó.');
+        } else {
+          Alert.alert('Error al unirse', msg);
+          window.alert('La sesión ya comenzó.');
+        }
+      } else {
+        Alert.alert('Error de red', 'No se pudo conectar con el servidor.');
+        window.alert('La sesión ya comenzó.');
+      }
+    }    
+       
   };
 
   return (
